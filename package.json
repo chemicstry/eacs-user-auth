@@ -1,0 +1,73 @@
+{
+  "name": "eacs-tag-auth",
+  "version": "1.0.0",
+  "description": "Extensible Access Control System. RFID Tag Authentication Module.",
+  "keywords": [
+    "eacs",
+    "acs",
+    "access control",
+    "rfid",
+    "nfc",
+    "tag",
+    "authentication"
+  ],
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register -r tsconfig-paths/register --recursive src/**/*.spec.ts",
+    "cover": "nyc npm test",
+    "start": "npm run build:live",
+    "build:live": "nodemon --exec ts-node --type-check -r tsconfig-paths/register ./src/index.ts",
+    "build": "tsc"
+  },
+  "nyc": {
+    "include": [
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "**/*.spec.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "reporter": [
+      "text-summary",
+      "html",
+      "lcov"
+    ],
+    "sourceMap": true,
+    "instrument": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chemicstry/eacs-tag-auth.git"
+  },
+  "author": "chemicstry <chemicstry@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chemicstry/eacs-tag-auth/issues"
+  },
+  "homepage": "https://github.com/chemicstry/eacs-tag-auth#readme",
+  "devDependencies": {
+    "@types/chai": "^4.1.2",
+    "@types/mocha": "^2.2.48",
+    "@types/node": "^8.9.1",
+    "@types/winston": "^2.3.7",
+    "@types/ws": "^4.0.0",
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.0",
+    "mocha": "^5.0.5",
+    "nodemon": "^1.14.12",
+    "nyc": "^11.6.0",
+    "ts-node": "^4.1.0",
+    "tsconfig-paths": "^3.1.1",
+    "typescript": "^2.7.1"
+  },
+  "dependencies": {
+    "modular-json-rpc": "^1.0.6",
+    "winston": "^2.4.0",
+    "ws": "^4.0.0"
+  }
+}
