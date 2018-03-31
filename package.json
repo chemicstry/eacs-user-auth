@@ -1,14 +1,12 @@
 {
-  "name": "eacs-tag-auth",
+  "name": "eacs-user-auth",
   "version": "1.0.0",
-  "description": "Extensible Access Control System. RFID Tag Authentication Module.",
+  "description": "Extensible Access Control System. User Authentication Module.",
   "keywords": [
     "eacs",
     "acs",
     "access control",
-    "rfid",
-    "nfc",
-    "tag",
+    "user",
     "authentication"
   ],
   "main": "dist/index.js",
@@ -42,14 +40,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chemicstry/eacs-tag-auth.git"
+    "url": "git+https://github.com/chemicstry/eacs-user-auth.git"
   },
   "author": "chemicstry <chemicstry@gmail.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/chemicstry/eacs-tag-auth/issues"
+    "url": "https://github.com/chemicstry/eacs-user-auth/issues"
   },
-  "homepage": "https://github.com/chemicstry/eacs-tag-auth#readme",
+  "homepage": "https://github.com/chemicstry/eacs-user-auth#readme",
   "devDependencies": {
     "@types/chai": "^4.1.2",
     "@types/mocha": "^2.2.48",
