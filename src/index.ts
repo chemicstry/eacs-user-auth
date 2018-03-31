@@ -2,7 +2,7 @@ import * as WebSocket from 'ws';
 import { Log } from './Log';
 import { WSTransport, RPCNode } from 'modular-json-rpc';
 
-const wss = new WebSocket.Server({ port: 3000 });
+const wss = new WebSocket.Server({ port: 3001 });
 
 wss.on('connection', (ws: WebSocket) => {
     Log.info("index: New websocket connection");
@@ -19,6 +19,14 @@ wss.on('connection', (ws: WebSocket) => {
     });
     ws.on('error', (e) => {
         Log.error("WebSocket Error", e);
+    });
+
+    // object - permission (i.e. main door, lights, etc)
+    node.bind("auth_uid", (object: string, uid: string) => {
+        if (uid === "046981BA703A80")
+            return true;
+        else
+            return false;
     });
 });
 
