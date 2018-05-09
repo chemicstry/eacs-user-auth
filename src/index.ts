@@ -4,6 +4,7 @@ import { EACSSocket, EACSToken } from 'eacs-socket';
 import * as WebSocket from 'ws';
 import { readFileSync } from 'fs';
 import { IncomingMessage } from 'http';
+import * as https from 'https';
 import { Log } from './Log';
 import { WSTransport, RPCNode } from 'modular-json-rpc';
 import { RPCMethodError } from 'modular-json-rpc/dist/Defines';
@@ -35,11 +36,28 @@ if (options.help)
 const jwtPublicKey = readFileSync(options.jwtPublicKey, "utf8");
 
 // Setup EACSSocket (websockets with JWT auth)
-const socket = new EACSSocket({
-    host: options.host,
-    port: options.port,
-    jwtPubKey: jwtPublicKey
-});
+if (options.tls_cert.length)
+{
+    // With TLS
+    var server = https.createServer({
+        cert: readFileSync(options.tls_cert),
+        key: readFileSync(options.tls_key)
+    }).listen(options.port, options.host);
+
+    var socket = new EACSSocket({
+        jwtPubKey: jwtPublicKey,
+        server
+    });
+}
+else
+{
+    // Without TLS
+    var socket = new EACSSocket({
+        host: options.host,
+        port: options.port,
+        jwtPubKey: jwtPublicKey
+    });
+}
 
 enum RPCErrors
 {
@@ -77,7 +95,7 @@ function asyncLDAPSearch(base: string, filter: string): Promise<any[]>
                 Log.error(`index: LDAP search error: ${err}`);
                 return;
             }
-        
+
             res.on('searchEntry', function(entry) {
                 results.push(entry.object);
             });
@@ -95,7 +113,7 @@ async function findUserByUID(uid: string)
 {
     if (!uid.match(/^[a-z0-9]+$/i))
         throw new Error('Invalid UID format');
-    
+
     var users = await asyncLDAPSearch(
         'dc=example,dc=com',
         `(&(associatedDomain=${uid}))`
