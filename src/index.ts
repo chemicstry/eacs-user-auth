@@ -69,7 +69,14 @@ enum RPCErrors
 
 // Initialize LDAP client
 var ldapClient = ldap.createClient({
-    url: options.ldapURL
+    url: options.ldapURL,
+    timeout: 1000,
+    connectTimeout: 1000,
+    reconnect: true
+});
+
+ldapClient.on('error', function(err) {
+    Log.error('index: LDAP client error', err);
 });
 
 // Authenticate LDAP
@@ -88,20 +95,25 @@ function asyncLDAPSearch(base: string, filter: string): Promise<any[]>
             filter
         };
 
+        // Holds all currently fetched results
         var results: any[] = [];
+
+        // Start search
         ldapClient.search(base, opts, function(err, res) {
-            if (err)
-            {
-                Log.error(`index: LDAP search error: ${err}`);
+            if (err) {
+                reject(err);
                 return;
             }
 
+            // Append results when new entry is received
             res.on('searchEntry', function(entry) {
                 results.push(entry.object);
             });
+            // Rejects promise on error
             res.on('error', function(err) {
                 reject(err);
             });
+            // Resolve promise with the acquired results
             res.on('end', function(result) {
                 resolve(results);
             });
@@ -116,7 +128,7 @@ async function findUserByUID(uid: string)
 
     var users = await asyncLDAPSearch(
         'dc=example,dc=com',
-        `(&(associatedDomain=${uid}))`
+        `(associatedDomain=${uid})`
     );
 
     Log.debug(`findUserByUID: users: ${JSON.stringify(users)}`);
