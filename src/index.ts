@@ -84,11 +84,14 @@ ldapClient.on('error', function(err) {
 });
 
 // Authenticate LDAP
-ldapClient.bind(options.ldapUser, options.ldapPass, (err) => {
+ldapClient.bind(options.ldapUser, options.ldapPass, async (err) => {
     if (err)
         throw new Error(`LDAP bind failed: ${err}`);
     else
         Log.info('index: LDAP bind successful.');
+
+    var user = await findUserByUID("046981BA703A80");
+    Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
 });
 
 function asyncLDAPSearch(base: string, filter: string): Promise<any[]>
@@ -180,17 +183,25 @@ socket.on('connection', (ws: WebSocket, req: IncomingMessage) => {
         if (!token.hasPermission("eacs-user-auth:auth_uid"))
             throw new RPCMethodError(RPCErrors.ACCESS_DENIED, 'No permission to call auth_uid');
 
+        // Find user with UID
         try {
-            let user = await findUserByUID(uid);
+            var user = await findUserByUID(uid);
             Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
-
-            let auth = await userOfGroupWithPermission(user.uid, token.identifier);
-
-            return auth;
         } catch (err) {
-            Log.debug(`auth_uid: find user error: ${err}`);
+            Log.error(`auth_uid: find user error: ${err}`);
             return false;
         }
+
+        // Find if user belongs to a group with permission
+        try {
+            var auth = await userOfGroupWithPermission(user.uid, token.identifier);
+            Log.debug(`auth_uid: groups: ${auth}`);
+        } catch (err) {
+            Log.error(`auth_uid: find group error: ${err}`);
+            return false;
+        }
+
+        return auth;
     });
 });
 
