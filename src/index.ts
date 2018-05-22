@@ -12,7 +12,7 @@ import optionDefinitions from './options';
 import * as ldap from 'ldapjs';
 
 // Options
-const options = commandLineArgs(optionDefinitions);
+const options = commandLineArgs(<commandLineUsage.OptionDefinition[]>optionDefinitions);
 
 // Print usage
 if (options.help)

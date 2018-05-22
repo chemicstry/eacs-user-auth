@@ -3,7 +3,7 @@ export default [
         name: 'port',
         alias: 'p',
         type: Number,
-        defaultValue: 3001,
+        defaultValue: 3000,
         description: 'Port number of websocket'
     },
     {
