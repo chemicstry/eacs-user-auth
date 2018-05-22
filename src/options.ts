@@ -38,6 +38,12 @@ export default [
         description: 'LDAP server URL'
     },
     {
+        name: 'ldapCert',
+        type: String,
+        defaultValue: 'ldap_cert.pem',
+        description: 'LDAP server certificate file if using ldaps scheme'
+    },
+    {
         name: 'ldapUser',
         type: String,
         defaultValue: 'cn=admin,dc=example,dc=com',
@@ -48,6 +54,12 @@ export default [
         type: String,
         defaultValue: 'admin',
         description: 'LDAP server bind password'
+    },
+    {
+        name: 'ldapSearchBase',
+        type: String,
+        defaultValue: 'dc=example,dc=com',
+        description: 'LDAP search base dn'
     },
     {
         name: 'help',

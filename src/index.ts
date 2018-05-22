@@ -72,7 +72,11 @@ var ldapClient = ldap.createClient({
     url: options.ldapURL,
     timeout: 1000,
     connectTimeout: 1000,
-    reconnect: true
+    reconnect: true,
+    tlsOptions: {
+        ca: (options.ldapURL.startsWith('ldaps') ? readFileSync(options.ldapCert) : undefined),
+        rejectUnauthorized: false // BETTER FIX ME SOON
+    }
 });
 
 ldapClient.on('error', function(err) {
@@ -127,7 +131,7 @@ async function findUserByUID(uid: string)
         throw new Error('Invalid UID format');
 
     var users = await asyncLDAPSearch(
-        'dc=example,dc=com',
+        options.ldapSearchBase,
         `(associatedDomain=${uid})`
     );
 
@@ -142,7 +146,7 @@ async function findUserByUID(uid: string)
 async function userOfGroupWithPermission(uid: string, perm: string)
 {
     var groups = await asyncLDAPSearch(
-        'dc=example,dc=com',
+        options.ldapSearchBase,
         `(&(memberUid=${uid})(bootFile=${perm}))`
     );
 
