@@ -34,34 +34,16 @@ exports.default = [
         description: 'Public key (in PEM format) used for JWT verification'
     },
     {
-        name: 'ldapURL',
-        type: String,
-        defaultValue: 'ldap://192.168.1.183:389',
-        description: 'LDAP server URL'
+        name: 'mdns',
+        type: Boolean,
+        defaultValue: true,
+        description: 'Use mdns for service discovery'
     },
     {
-        name: 'ldapCert',
+        name: 'dbFile',
         type: String,
-        defaultValue: 'ldap_cert.pem',
-        description: 'LDAP server certificate file if using ldaps scheme'
-    },
-    {
-        name: 'ldapUser',
-        type: String,
-        defaultValue: 'cn=admin,dc=example,dc=com',
-        description: 'LDAP server bind user'
-    },
-    {
-        name: 'ldapPass',
-        type: String,
-        defaultValue: 'admin',
-        description: 'LDAP server bind password'
-    },
-    {
-        name: 'ldapSearchBase',
-        type: String,
-        defaultValue: 'dc=example,dc=com',
-        description: 'LDAP search base dn'
+        defaultValue: 'db.json',
+        description: 'LowDB file for storing user data'
     },
     {
         name: 'help',

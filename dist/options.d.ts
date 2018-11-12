@@ -19,6 +19,12 @@ declare const _default: ({
 } | {
     name: string;
     type: BooleanConstructor;
+    defaultValue: boolean;
+    description: string;
+    alias?: undefined;
+} | {
+    name: string;
+    type: BooleanConstructor;
     description: string;
     alias?: undefined;
     defaultValue?: undefined;

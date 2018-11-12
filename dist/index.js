@@ -27,7 +27,8 @@ const Log_1 = require("./Log");
 const modular_json_rpc_1 = require("modular-json-rpc");
 const Defines_1 = require("modular-json-rpc/dist/Defines");
 const options_1 = __importDefault(require("./options"));
-const ldap = __importStar(require("ldapjs"));
+const DB_1 = __importDefault(require("./DB"));
+const mdns = __importStar(require("mdns"));
 // Options
 const options = commandLineArgs(options_1.default);
 // Print usage
@@ -58,6 +59,7 @@ if (options.tls_cert.length) {
         jwtPubKey: jwtPublicKey,
         server
     });
+    Log_1.Log.info(`Service started on ${options.host}:${options.port} with TLS encryption`);
 }
 else {
     // Without TLS
@@ -66,6 +68,13 @@ else {
         port: options.port,
         jwtPubKey: jwtPublicKey
     });
+    Log_1.Log.info(`Service started on ${options.host}:${options.port}`);
+}
+// Start mdns advertisement
+if (options.mdns) {
+    var ad = mdns.createAdvertisement(mdns.tcp("eacs-user-auth"), options.port);
+    ad.start();
+    Log_1.Log.info("Started mDNS advertisement");
 }
 var RPCErrors;
 (function (RPCErrors) {
@@ -74,75 +83,11 @@ var RPCErrors;
     RPCErrors[RPCErrors["INITIALIZE_KEY_FAILED"] = 3] = "INITIALIZE_KEY_FAILED";
     RPCErrors[RPCErrors["ACCESS_DENIED"] = 4] = "ACCESS_DENIED";
 })(RPCErrors || (RPCErrors = {}));
-// Initialize LDAP client
-var ldapClient = ldap.createClient({
-    url: options.ldapURL,
-    timeout: 1000,
-    connectTimeout: 1000,
-    reconnect: true,
-    tlsOptions: {
-        ca: (options.ldapURL.startsWith('ldaps') ? fs_1.readFileSync(options.ldapCert) : undefined),
-        rejectUnauthorized: false // BETTER FIX ME SOON
-    }
-});
-ldapClient.on('error', function (err) {
-    Log_1.Log.error('index: LDAP client error', err);
-});
-// Authenticate LDAP
-ldapClient.bind(options.ldapUser, options.ldapPass, (err) => __awaiter(this, void 0, void 0, function* () {
-    if (err)
-        throw new Error(`LDAP bind failed: ${err}`);
-    else
-        Log_1.Log.info('index: LDAP bind successful.');
-    var user = yield findUserByUID("046981BA703A80");
-    Log_1.Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
-}));
-function asyncLDAPSearch(base, filter) {
-    return new Promise((resolve, reject) => {
-        var opts = {
-            scope: 'sub',
-            filter
-        };
-        // Holds all currently fetched results
-        var results = [];
-        // Start search
-        ldapClient.search(base, opts, function (err, res) {
-            if (err) {
-                reject(err);
-                return;
-            }
-            // Append results when new entry is received
-            res.on('searchEntry', function (entry) {
-                results.push(entry.object);
-            });
-            // Rejects promise on error
-            res.on('error', function (err) {
-                reject(err);
-            });
-            // Resolve promise with the acquired results
-            res.on('end', function (result) {
-                resolve(results);
-            });
-        });
-    });
-}
-function findUserByUID(uid) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!uid.match(/^[a-z0-9]+$/i))
-            throw new Error('Invalid UID format');
-        var users = yield asyncLDAPSearch(options.ldapSearchBase, `(associatedDomain=${uid})`);
-        Log_1.Log.debug(`findUserByUID: users: ${JSON.stringify(users)}`);
-        if (!users.length)
-            throw new Error('User not found');
-        return users[0];
-    });
-}
-function userOfGroupWithPermission(uid, perm) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var groups = yield asyncLDAPSearch(options.ldapSearchBase, `(&(memberUid=${uid})(bootFile=${perm}))`);
-        Log_1.Log.debug(`userOfGroupWithPermission: groups: ${JSON.stringify(groups)}`);
-        return groups.length > 0;
-    });
+// Initialize database
+const db = new DB_1.default(options.dbFile);
+function RequirePermission(token, permission) {
+    if (!token.hasPermission(`eacs-user-auth:${permission}`))
+        throw new Defines_1.RPCMethodError(RPCErrors.ACCESS_DENIED, `No permission to call ${permission}`);
 }
 socket.on('connection', (ws, req) => {
     let token = req.token;
@@ -160,21 +105,39 @@ socket.on('connection', (ws, req) => {
     });
     // object - permission (i.e. main door, lights, etc)
     node.bind("auth_uid", (object, uid) => __awaiter(this, void 0, void 0, function* () {
-        // Check password for this method
-        if (!token.hasPermission("eacs-user-auth:auth_uid"))
-            throw new Defines_1.RPCMethodError(RPCErrors.ACCESS_DENIED, 'No permission to call auth_uid');
-        try {
-            let user = yield findUserByUID(uid);
-            Log_1.Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
-            let auth = yield userOfGroupWithPermission(user.uid, token.identifier);
-            return auth;
-        }
-        catch (err) {
-            Log_1.Log.error(`auth_uid: find user error: ${err}`);
-            return false;
-        }
+        RequirePermission(token, "auth_uid");
+        return db.authUID(uid, object);
     }));
-});
-process.on('unhandledRejection', (reason, promise) => {
-    Log_1.Log.error("Unhandled promise rejection", { reason, promise });
+    node.bind("getUsers", () => __awaiter(this, void 0, void 0, function* () {
+        RequirePermission(token, "getUsers");
+        return db.getUsers();
+    }));
+    node.bind("upsertUser", (data) => __awaiter(this, void 0, void 0, function* () {
+        Log_1.Log.info("upsertUser", data);
+        RequirePermission(token, "upsertUser");
+        db.upsertUser(data);
+        return true;
+    }));
+    node.bind("deleteUser", (id) => __awaiter(this, void 0, void 0, function* () {
+        Log_1.Log.info("deleteUser", id);
+        RequirePermission(token, "deleteUser");
+        db.deleteUser(id);
+        return true;
+    }));
+    node.bind("getGroups", () => __awaiter(this, void 0, void 0, function* () {
+        RequirePermission(token, "getGroups");
+        return db.getGroups();
+    }));
+    node.bind("upsertGroup", (data) => __awaiter(this, void 0, void 0, function* () {
+        Log_1.Log.info("upsertGroup", data);
+        RequirePermission(token, "upsertGroup");
+        db.upsertGroup(data);
+        return true;
+    }));
+    node.bind("deleteGroup", (id) => __awaiter(this, void 0, void 0, function* () {
+        Log_1.Log.info("deleteGroup", id);
+        RequirePermission(token, "deleteGroup");
+        db.deleteGroup(id);
+        return true;
+    }));
 });
