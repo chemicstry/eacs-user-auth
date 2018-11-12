@@ -62,3 +62,6 @@ typings/
 
 # Certificates
 *.pem
+
+# Default database file
+db.json

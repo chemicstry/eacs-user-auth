@@ -9,7 +9,9 @@ import { Log } from './Log';
 import { WSTransport, RPCNode } from 'modular-json-rpc';
 import { RPCMethodError } from 'modular-json-rpc/dist/Defines';
 import optionDefinitions from './options';
-import * as ldap from 'ldapjs';
+import DB from './DB';
+import * as mdns from 'mdns';
+import { create } from 'domain';
 
 // Options
 const options = commandLineArgs(<commandLineUsage.OptionDefinition[]>optionDefinitions);
@@ -48,6 +50,8 @@ if (options.tls_cert.length)
         jwtPubKey: jwtPublicKey,
         server
     });
+
+    Log.info(`Service started on ${options.host}:${options.port} with TLS encryption`)
 }
 else
 {
@@ -57,6 +61,16 @@ else
         port: options.port,
         jwtPubKey: jwtPublicKey
     });
+
+    Log.info(`Service started on ${options.host}:${options.port}`)
+}
+
+// Start mdns advertisement
+if (options.mdns)
+{
+    var ad = mdns.createAdvertisement(mdns.tcp("eacs-user-auth"), options.port);
+    ad.start();
+    Log.info("Started mDNS advertisement");
 }
 
 enum RPCErrors
@@ -67,95 +81,13 @@ enum RPCErrors
     ACCESS_DENIED                       = 4,
 }
 
-// Initialize LDAP client
-var ldapClient = ldap.createClient({
-    url: options.ldapURL,
-    timeout: 1000,
-    connectTimeout: 1000,
-    reconnect: true,
-    tlsOptions: {
-        ca: (options.ldapURL.startsWith('ldaps') ? readFileSync(options.ldapCert) : undefined),
-        rejectUnauthorized: false // BETTER FIX ME SOON
-    }
-});
+// Initialize database
+const db = new DB(options.dbFile);
 
-ldapClient.on('error', function(err) {
-    Log.error('index: LDAP client error', err);
-});
-
-// Authenticate LDAP
-ldapClient.bind(options.ldapUser, options.ldapPass, async (err) => {
-    if (err)
-        throw new Error(`LDAP bind failed: ${err}`);
-    else
-        Log.info('index: LDAP bind successful.');
-
-    var user = await findUserByUID("046981BA703A80");
-    Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
-});
-
-function asyncLDAPSearch(base: string, filter: string): Promise<any[]>
+function RequirePermission(token: EACSToken, permission: string)
 {
-    return new Promise((resolve, reject) => {
-        var opts = {
-            scope: 'sub',
-            filter
-        };
-
-        // Holds all currently fetched results
-        var results: any[] = [];
-
-        // Start search
-        ldapClient.search(base, opts, function(err, res) {
-            if (err) {
-                reject(err);
-                return;
-            }
-
-            // Append results when new entry is received
-            res.on('searchEntry', function(entry) {
-                results.push(entry.object);
-            });
-            // Rejects promise on error
-            res.on('error', function(err) {
-                reject(err);
-            });
-            // Resolve promise with the acquired results
-            res.on('end', function(result) {
-                resolve(results);
-            });
-        });
-    })
-}
-
-async function findUserByUID(uid: string)
-{
-    if (!uid.match(/^[a-z0-9]+$/i))
-        throw new Error('Invalid UID format');
-
-    var users = await asyncLDAPSearch(
-        options.ldapSearchBase,
-        `(associatedDomain=${uid})`
-    );
-
-    Log.debug(`findUserByUID: users: ${JSON.stringify(users)}`);
-
-    if (!users.length)
-        throw new Error('User not found');
-
-    return users[0];
-}
-
-async function userOfGroupWithPermission(uid: string, perm: string)
-{
-    var groups = await asyncLDAPSearch(
-        options.ldapSearchBase,
-        `(&(memberUid=${uid})(bootFile=${perm}))`
-    );
-
-    Log.debug(`userOfGroupWithPermission: groups: ${JSON.stringify(groups)}`);
-
-    return groups.length > 0;
+    if (!token.hasPermission(`eacs-user-auth:${permission}`))
+        throw new RPCMethodError(RPCErrors.ACCESS_DENIED, `No permission to call ${permission}`);
 }
 
 socket.on('connection', (ws: WebSocket, req: IncomingMessage) => {
@@ -179,32 +111,46 @@ socket.on('connection', (ws: WebSocket, req: IncomingMessage) => {
 
     // object - permission (i.e. main door, lights, etc)
     node.bind("auth_uid", async (object: string, uid: string) => {
-        // Check password for this method
-        if (!token.hasPermission("eacs-user-auth:auth_uid"))
-            throw new RPCMethodError(RPCErrors.ACCESS_DENIED, 'No permission to call auth_uid');
+        RequirePermission(token, "auth_uid");
 
-        // Find user with UID
-        try {
-            var user = await findUserByUID(uid);
-            Log.debug(`auth_uid: user: ${JSON.stringify(user)}`);
-        } catch (err) {
-            Log.error(`auth_uid: find user error: ${err}`);
-            return false;
-        }
-
-        // Find if user belongs to a group with permission
-        try {
-            var auth = await userOfGroupWithPermission(user.uid, token.identifier);
-            Log.debug(`auth_uid: groups: ${auth}`);
-        } catch (err) {
-            Log.error(`auth_uid: find group error: ${err}`);
-            return false;
-        }
-
-        return auth;
+        return db.authUID(uid, object);
     });
-});
 
-process.on('unhandledRejection', (reason, promise) => {
-    Log.error("Unhandled promise rejection", {reason, promise});
+    node.bind("getUsers", async () => {
+        RequirePermission(token, "getUsers");
+        return db.getUsers();
+    });
+
+    node.bind("upsertUser", async (data: any) => {
+        Log.info("upsertUser", data);
+        RequirePermission(token, "upsertUser");
+        db.upsertUser(data);
+        return true;
+    });
+
+    node.bind("deleteUser", async (id: String) => {
+        Log.info("deleteUser", id);
+        RequirePermission(token, "deleteUser");
+        db.deleteUser(id);
+        return true;
+    })
+
+    node.bind("getGroups", async () => {
+        RequirePermission(token, "getGroups");
+        return db.getGroups();
+    });
+
+    node.bind("upsertGroup", async (data: any) => {
+        Log.info("upsertGroup", data);
+        RequirePermission(token, "upsertGroup");
+        db.upsertGroup(data);
+        return true;
+    });
+
+    node.bind("deleteGroup", async (id: String) => {
+        Log.info("deleteGroup", id);
+        RequirePermission(token, "deleteGroup");
+        db.deleteGroup(id);
+        return true;
+    })
 });

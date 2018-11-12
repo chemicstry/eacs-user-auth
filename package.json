@@ -14,7 +14,7 @@
     "test": "mocha -r ts-node/register -r tsconfig-paths/register --recursive src/**/*.spec.ts",
     "cover": "nyc npm test",
     "start": "npm run build:live",
-    "build:live": "nodemon --exec ts-node --type-check -r tsconfig-paths/register ./src/index.ts",
+    "build:live": "nodemon --watch src --exec ts-node --type-check -r tsconfig-paths/register ./src/index.ts",
     "build": "tsc"
   },
   "nyc": {
@@ -67,12 +67,17 @@
   },
   "dependencies": {
     "@types/ldapjs": "^1.0.3",
+    "@types/lowdb": "^1.0.6",
+    "@types/mdns": "0.0.32",
+    "@types/shortid": "0.0.29",
     "command-line-args": "^5.0.2",
     "command-line-usage": "^5.0.4",
     "eacs-socket": "^1.0.1",
     "jsonwebtoken": "^8.2.0",
-    "ldapjs": "^1.0.2",
+    "lowdb": "^1.0.0",
+    "mdns": "^2.4.0",
     "modular-json-rpc": "^1.0.6",
+    "shortid": "^2.2.14",
     "winston": "^2.4.0",
     "ws": "^4.0.0"
   }

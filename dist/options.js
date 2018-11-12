@@ -1,4 +1,6 @@
-export default [
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = [
     {
         name: 'port',
         alias: 'p',
@@ -32,16 +34,34 @@ export default [
         description: 'Public key (in PEM format) used for JWT verification'
     },
     {
-        name: 'mdns',
-        type: Boolean,
-        defaultValue: true,
-        description: 'Use mdns for service discovery'
+        name: 'ldapURL',
+        type: String,
+        defaultValue: 'ldap://192.168.1.183:389',
+        description: 'LDAP server URL'
     },
     {
-        name: 'dbFile',
+        name: 'ldapCert',
         type: String,
-        defaultValue: 'db.json',
-        description: 'LowDB file for storing user data'
+        defaultValue: 'ldap_cert.pem',
+        description: 'LDAP server certificate file if using ldaps scheme'
+    },
+    {
+        name: 'ldapUser',
+        type: String,
+        defaultValue: 'cn=admin,dc=example,dc=com',
+        description: 'LDAP server bind user'
+    },
+    {
+        name: 'ldapPass',
+        type: String,
+        defaultValue: 'admin',
+        description: 'LDAP server bind password'
+    },
+    {
+        name: 'ldapSearchBase',
+        type: String,
+        defaultValue: 'dc=example,dc=com',
+        description: 'LDAP search base dn'
     },
     {
         name: 'help',
