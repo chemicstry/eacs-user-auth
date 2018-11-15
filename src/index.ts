@@ -113,7 +113,15 @@ socket.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     node.bind("auth_uid", async (object: string, uid: string) => {
         RequirePermission(token, "auth_uid");
 
-        return db.authUID(uid, object);
+        var res = await db.authUID(uid, object);
+
+        if (res) {
+            Log.info("auth_uid successful", {object, uid});
+            return true;
+        } else {
+            Log.info("auth_uid failed", {object, uid});
+            return false;
+        }
     });
 
     node.bind("getUsers", async () => {
