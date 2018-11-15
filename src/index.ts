@@ -10,8 +10,7 @@ import { WSTransport, RPCNode } from 'modular-json-rpc';
 import { RPCMethodError } from 'modular-json-rpc/dist/Defines';
 import optionDefinitions from './options';
 import DB from './DB';
-import * as mdns from 'mdns';
-import { create } from 'domain';
+import Bonjour from 'bonjour';
 
 // Options
 const options = commandLineArgs(<commandLineUsage.OptionDefinition[]>optionDefinitions);
@@ -68,8 +67,8 @@ else
 // Start mdns advertisement
 if (options.mdns)
 {
-    var ad = mdns.createAdvertisement(mdns.tcp("eacs-user-auth"), options.port);
-    ad.start();
+    var mdns = Bonjour();
+    mdns.publish({ name: 'eacs-user-auth', type: 'eacs-user-auth', port: options.port });
     Log.info("Started mDNS advertisement");
 }
 
