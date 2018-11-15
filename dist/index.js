@@ -28,7 +28,7 @@ const modular_json_rpc_1 = require("modular-json-rpc");
 const Defines_1 = require("modular-json-rpc/dist/Defines");
 const options_1 = __importDefault(require("./options"));
 const DB_1 = __importDefault(require("./DB"));
-const mdns = __importStar(require("mdns"));
+const bonjour_1 = __importDefault(require("bonjour"));
 // Options
 const options = commandLineArgs(options_1.default);
 // Print usage
@@ -72,8 +72,8 @@ else {
 }
 // Start mdns advertisement
 if (options.mdns) {
-    var ad = mdns.createAdvertisement(mdns.tcp("eacs-user-auth"), options.port);
-    ad.start();
+    var mdns = bonjour_1.default();
+    mdns.publish({ name: 'eacs-user-auth', type: 'eacs-user-auth', port: options.port });
     Log_1.Log.info("Started mDNS advertisement");
 }
 var RPCErrors;
@@ -106,7 +106,15 @@ socket.on('connection', (ws, req) => {
     // object - permission (i.e. main door, lights, etc)
     node.bind("auth_uid", (object, uid) => __awaiter(this, void 0, void 0, function* () {
         RequirePermission(token, "auth_uid");
-        return db.authUID(uid, object);
+        var res = yield db.authUID(uid, object);
+        if (res) {
+            Log_1.Log.info("auth_uid successful", { object, uid });
+            return true;
+        }
+        else {
+            Log_1.Log.info("auth_uid failed", { object, uid });
+            return false;
+        }
     }));
     node.bind("getUsers", () => __awaiter(this, void 0, void 0, function* () {
         RequirePermission(token, "getUsers");
